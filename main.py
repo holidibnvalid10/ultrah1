@@ -1,4 +1,3 @@
-
 import ccxt
 import requests
 import time
@@ -15,7 +14,6 @@ exchange = ccxt.binance({
     'apiKey': BINANCE_API_KEY
 })
 
-# 118 ta coin
 PAIRS = [
     "ACH/USDT", "ADA/USDT", "AGLD/USDT", "ALGO/USDT", "AMP/USDT", "APE/USDT", "API3/USDT", "APT/USDT", "ARB/USDT", "ARKM/USDT",
     "ARPA/USDT", "ASTR/USDT", "ATA/USDT", "ATOM/USDT", "AVA/USDT", "AVAX/USDT", "AXL/USDT", "BANANA/USDT", "BCH/USDT", "BICO/USDT",
@@ -33,7 +31,6 @@ PAIRS = [
     "KAITO/USDT", "OMNI/USDT", "SAGA/USDT", "STEEM/USDT", "STRAX/USDT", "S/USDT", "VANRY/USDT", "WCT/USDT", "HYPER/USDT", "SHELL/USDT"
 ]
 
-# Telegram xabar
 def send_telegram_message(text):
     url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
     payload = {"chat_id": CHAT_ID, "text": text}
@@ -42,7 +39,6 @@ def send_telegram_message(text):
     except Exception as e:
         print("Telegramga yuborishda xato:", e)
 
-# POC hisoblash (real trade volume asosida)
 def calculate_real_poc(symbol, since):
     try:
         market = exchange.market(symbol)
@@ -63,24 +59,27 @@ def calculate_real_poc(symbol, since):
         print(f"POC xatolik: {symbol} - {e}")
         return None
 
-# Candle sinxronlash
+# ✅ M15 timeframe sinxronlash
 def wait_until_next_valid_time():
     now = datetime.utcnow()
-    next_time = now.replace(minute=0, second=5, microsecond=0) + timedelta(hours=1)
+    minute = (now.minute // 15 + 1) * 15
+    if minute == 60:
+        next_time = now.replace(minute=0, second=5, microsecond=0) + timedelta(hours=1)
+    else:
+        next_time = now.replace(minute=minute, second=5, microsecond=0)
     wait_seconds = (next_time - now).total_seconds()
     print(f"⌛ Kutilyapti: {int(wait_seconds)}s ({next_time.strftime('%H:%M')} UTC)")
     time.sleep(wait_seconds)
 
-# So‘nggi 2 ta yopilgan H1 candle
+# ✅ M15 timeframe uchun so‘nggi 2 ta sham
 def get_last_closed_candles(pair):
     try:
-        candles = exchange.fetch_ohlcv(pair, '1h', limit=3)
+        candles = exchange.fetch_ohlcv(pair, '15m', limit=3)
         return candles[-3:-1]
     except Exception as e:
         print(f"Candle xato: {pair} - {e}")
         return []
 
-# Bullish engulfing + real POC sharti
 def check_bullish_engulfing_with_real_poc(pair, candles):
     if len(candles) < 2:
         return False
@@ -91,11 +90,9 @@ def check_bullish_engulfing_with_real_poc(pair, candles):
     open1, high1, low1, close1 = prev[1:5]
     open2, high2, low2, close2 = curr[1:5]
 
-    # Bullish engulfing sharti
     if close1 >= open1 or close2 <= open2 or close2 <= high1:
         return False
 
-    # Real POClarni hisoblash (eng so‘nggi sham uchun)
     since_prev = prev[0]
     since_curr = curr[0]
     poc_prev = calculate_real_poc(pair, since_prev)
@@ -104,7 +101,6 @@ def check_bullish_engulfing_with_real_poc(pair, candles):
     if poc_prev is None or poc_curr is None:
         return False
 
-    # POC sharti: yashil sham POC > qizil sham POC
     return poc_curr > poc_prev
 
 # Asosiy sikl
@@ -113,7 +109,7 @@ while True:
     for pair in PAIRS:
         candles = get_last_closed_candles(pair)
         if check_bullish_engulfing_with_real_poc(pair, candles):
-            msg = f"✅ Bullish Engulfing + Real POC (H1)🪙 Pair: {pair}"
+            msg = f"✅ Bullish Engulfing + Real POC (M15)🪙 Pair: {pair}"
             send_telegram_message(msg)
             time.sleep(1)
     print(f"⏰ {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')} UTC tekshirildi.")
