@@ -59,22 +59,16 @@ def calculate_real_poc(symbol, since):
         print(f"POC xatolik: {symbol} - {e}")
         return None
 
-# ✅ M15 timeframe sinxronlash
 def wait_until_next_valid_time():
     now = datetime.utcnow()
-    minute = (now.minute // 15 + 1) * 15
-    if minute == 60:
-        next_time = now.replace(minute=0, second=5, microsecond=0) + timedelta(hours=1)
-    else:
-        next_time = now.replace(minute=minute, second=5, microsecond=0)
-    wait_seconds = (next_time - now).total_seconds()
-    print(f"⌛ Kutilyapti: {int(wait_seconds)}s ({next_time.strftime('%H:%M')} UTC)")
+    next_hour = now.replace(minute=0, second=5, microsecond=0) + timedelta(hours=1)
+    wait_seconds = (next_hour - now).total_seconds()
+    print(f"⌛ Kutilyapti: {int(wait_seconds)}s ({next_hour.strftime('%H:%M')} UTC)")
     time.sleep(wait_seconds)
 
-# ✅ M15 timeframe uchun so‘nggi 2 ta sham
 def get_last_closed_candles(pair):
     try:
-        candles = exchange.fetch_ohlcv(pair, '15m', limit=3)
+        candles = exchange.fetch_ohlcv(pair, '1h', limit=3)
         return candles[-3:-1]
     except Exception as e:
         print(f"Candle xato: {pair} - {e}")
@@ -103,13 +97,12 @@ def check_bullish_engulfing_with_real_poc(pair, candles):
 
     return poc_curr > poc_prev
 
-# Asosiy sikl
 while True:
     wait_until_next_valid_time()
     for pair in PAIRS:
         candles = get_last_closed_candles(pair)
         if check_bullish_engulfing_with_real_poc(pair, candles):
-            msg = f"✅ Bullish Engulfing + Real POC (M15)🪙 Pair: {pair}"
+            msg = f"✅ Bullish Engulfing + Real POC (H1)🕐 Pair: {pair}"
             send_telegram_message(msg)
             time.sleep(1)
     print(f"⏰ {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')} UTC tekshirildi.")
